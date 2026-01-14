@@ -1,0 +1,72 @@
+# ============================================
+# .gitignore - GitHub ga yuklanmaydigan fayllar
+# ============================================
+
+# MUHIM: Maxfiy ma'lumotlar
+.env
+*.env
+
+# Database fayllari
+*.db
+*.sqlite
+*.sqlite3
+bot_database.db
+
+# Session fayllari
+*.session
+*.session-journal
+
+# Log fayllari
+*.log
+bot.log
+userbot.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Backup fayllari
+*.bak
+*.backup
+*~
+
+# Test fayllari
+test_*.py
+*_test.py
+
+# Temporary fayllari
+tmp/
+temp/
+*.tmp
