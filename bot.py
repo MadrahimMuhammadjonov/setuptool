@@ -1,5 +1,5 @@
 # ============================================
-# bot.py - Telegram Bot (v20.8 va Python 3.13 uchun)
+# bot.py - Telegram Bot (v21.10 va Python 3.13 uchun)
 # ============================================
 
 import logging
@@ -556,7 +556,7 @@ def main():
     if not db.get_setting('userbot_schedule_enabled'):
         db.set_setting('userbot_schedule_enabled', 'true')
     
-    # Application yaratish (v20.8 uchun)
+    # Application yaratish (v21.10 uchun)
     application = ApplicationBuilder().token(TOKEN).build()
 
     # Handlerlar
@@ -569,13 +569,8 @@ def main():
 
     logger.info("🚀 Bot ishga tushmoqda...")
     
-    try:
-        logger.info("✅ Bot ishga tushdi!")
-        logger.info(f"🔐 Super Admin ID: {SUPER_ADMIN_ID}")
-        logger.info("💡 Botni to'xtatish uchun Ctrl+C bosing")
-        application.run_polling()
-    except Exception as e:
-        logger.error(f"❌ Xato: {e}")
+    # v21+ da run_polling() asinxron loopni o'zi boshqaradi
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
