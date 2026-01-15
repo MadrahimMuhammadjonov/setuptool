@@ -46,7 +46,8 @@ def init_db():
     
     # Private groups jadvali
     c.execute('''CREATE TABLE IF NOT EXISTS private_groups
-                 (admin_id INTEGER PRIMARY KEY, 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  admin_id INTEGER, 
                   group_id INTEGER, 
                   group_link TEXT, 
                   group_name TEXT,
@@ -125,20 +126,20 @@ def add_keyword(admin_id, keyword):
     conn.commit()
     conn.close()
 
-def get_keywords(admin_id):
+def get_admin_keywords(admin_id):
     """Admin kalit so'zlarini olish"""
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, keyword FROM keywords WHERE admin_id = ? ORDER BY added_date DESC", (admin_id,))
-    keywords = [(row['id'], row['keyword']) for row in c.fetchall()]
+    c.execute("SELECT keyword FROM keywords WHERE admin_id = ? ORDER BY added_date DESC", (admin_id,))
+    keywords = [row['keyword'] for row in c.fetchall()]
     conn.close()
     return keywords
 
-def remove_keyword(keyword_id):
+def remove_keyword(admin_id, keyword):
     """Kalit so'zni o'chirish"""
     conn = get_db()
     c = conn.cursor()
-    c.execute("DELETE FROM keywords WHERE id = ?", (keyword_id,))
+    c.execute("DELETE FROM keywords WHERE admin_id = ? AND keyword = ?", (admin_id, keyword))
     conn.commit()
     conn.close()
 
@@ -170,27 +171,27 @@ def add_search_group(admin_id, super_admin_id, group_id=None, group_link=None, g
     conn.close()
     return True, "✅ Izlovchi guruh qo'shildi"
 
-def get_search_groups(admin_id):
+def get_admin_search_groups(admin_id):
     """Admin izlovchi guruhlarini olish"""
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, group_name FROM search_groups WHERE admin_id = ? ORDER BY added_date DESC", (admin_id,))
-    groups = [(row['id'], row['group_name']) for row in c.fetchall()]
+    c.execute("SELECT group_id, group_name, group_link FROM search_groups WHERE admin_id = ? ORDER BY added_date DESC", (admin_id,))
+    groups = [(row['group_id'], row['group_name'], row['group_link']) for row in c.fetchall()]
     conn.close()
     return groups
 
-def remove_search_group(group_id):
+def remove_search_group(admin_id, group_id):
     """Izlovchi guruhni o'chirish"""
     conn = get_db()
     c = conn.cursor()
-    c.execute("DELETE FROM search_groups WHERE id = ?", (group_id,))
+    c.execute("DELETE FROM search_groups WHERE admin_id = ? AND group_id = ?", (admin_id, group_id))
     conn.commit()
     conn.close()
 
 # ==================== SHAXSIY GURUH FUNKSIYALARI ====================
 
 def add_private_group(admin_id, group_id=None, group_link=None, group_name=None):
-    """Shaxsiy guruh qo'shish (har bir admin uchun faqat 1 ta)"""
+    """Shaxsiy guruh qo'shish"""
     conn = get_db()
     c = conn.cursor()
     c.execute("DELETE FROM private_groups WHERE admin_id = ?", (admin_id,))
@@ -199,29 +200,20 @@ def add_private_group(admin_id, group_id=None, group_link=None, group_name=None)
     conn.commit()
     conn.close()
 
-def get_private_group_id(admin_id):
-    """Admin shaxsiy guruh ID sini olish"""
+def get_admin_private_groups(admin_id):
+    """Admin shaxsiy guruhlarini olish"""
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT group_id FROM private_groups WHERE admin_id = ?", (admin_id,))
-    result = c.fetchone()
+    c.execute("SELECT group_id, group_name, group_link FROM private_groups WHERE admin_id = ?", (admin_id,))
+    groups = [(row['group_id'], row['group_name'], row['group_link']) for row in c.fetchall()]
     conn.close()
-    return result['group_id'] if result else None
+    return groups
 
-def get_private_group_name(admin_id):
-    """Admin shaxsiy guruh nomini olish"""
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT group_name FROM private_groups WHERE admin_id = ?", (admin_id,))
-    result = c.fetchone()
-    conn.close()
-    return result['group_name'] if result else None
-
-def remove_private_group(admin_id):
+def remove_private_group(admin_id, group_id):
     """Shaxsiy guruhni o'chirish"""
     conn = get_db()
     c = conn.cursor()
-    c.execute("DELETE FROM private_groups WHERE admin_id = ?", (admin_id,))
+    c.execute("DELETE FROM private_groups WHERE admin_id = ? AND group_id = ?", (admin_id, group_id))
     conn.commit()
     conn.close()
 
@@ -275,7 +267,6 @@ def check_keywords_in_message(group_id, message_text):
     conn.close()
     return matches
 
-# Agar to'g'ridan-to'g'ri ishga tushirilsa
 if __name__ == '__main__':
     print("🔧 Database yaratilmoqda...")
     init_db()
