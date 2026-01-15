@@ -1,4 +1,4 @@
-python-telegram-bot==20.8
+python-telegram-bot==13.15
 python-dotenv
 telethon==1.35.0
 # cryptg olib tashlandi
