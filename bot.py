@@ -1,4 +1,3 @@
-
 # ============================================
 # bot.py - Telegram Bot (To'liq versiya)
 # ============================================
@@ -27,9 +26,10 @@ logger = logging.getLogger(__name__)
 
 # ==================== SOZLAMALAR ====================
 TOKEN = os.getenv('BOT_TOKEN')
-SUPER_ADMIN_ID = int(os.getenv('SUPER_ADMIN_ID'))
+SUPER_ADMIN_ID_STR = os.getenv('SUPER_ADMIN_ID')
+SUPER_ADMIN_ID = int(SUPER_ADMIN_ID_STR) if SUPER_ADMIN_ID_STR else None
 
-if not TOKEN or not SUPER_ADMIN_ID:
+if not TOKEN or SUPER_ADMIN_ID is None:
     raise ValueError("❌ .env faylida BOT_TOKEN yoki SUPER_ADMIN_ID topilmadi!")
 
 # ==================== KEYBOARD ====================
@@ -508,7 +508,7 @@ def handle_text(update: Update, context: CallbackContext):
         if text.startswith("http"):
             db.add_private_group(admin_id, group_link=text, group_name="Link orqali guruh")
             update.message.reply_text(
-                "✅ Shaxsiy guruh qo'shildi: Link orqali guruh",
+                "✅ Shaxsiy guruh link orqali qo'shildi!",
                 reply_markup=back_button()
             )
         else:
