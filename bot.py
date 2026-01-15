@@ -1,18 +1,6 @@
 # ============================================
-# bot.py - Telegram Bot (Python 3.13 moslik versiyasi)
+# bot.py - Telegram Bot (To'liq versiya)
 # ============================================
-
-import sys
-
-# Python 3.13 da 'imghdr' olib tashlangan, lekin python-telegram-bot v13 uni talab qiladi.
-# Uni vaqtincha "monkeypatch" qilish orqali xatolikni chetlab o'tamiz.
-try:
-    import imghdr
-except ImportError:
-    import types
-    imghdr = types.ModuleType("imghdr")
-    imghdr.what = lambda file, h=None: None
-    sys.modules["imghdr"] = imghdr
 
 import logging
 import os
@@ -38,10 +26,9 @@ logger = logging.getLogger(__name__)
 
 # ==================== SOZLAMALAR ====================
 TOKEN = os.getenv('BOT_TOKEN')
-SUPER_ADMIN_ID_RAW = os.getenv('SUPER_ADMIN_ID')
-SUPER_ADMIN_ID = int(SUPER_ADMIN_ID_RAW) if SUPER_ADMIN_ID_RAW else None
+SUPER_ADMIN_ID = int(os.getenv('SUPER_ADMIN_ID'))
 
-if not TOKEN or SUPER_ADMIN_ID is None:
+if not TOKEN or not SUPER_ADMIN_ID:
     raise ValueError("❌ .env faylida BOT_TOKEN yoki SUPER_ADMIN_ID topilmadi!")
 
 # ==================== KEYBOARD ====================
@@ -251,18 +238,13 @@ def button_callback(update: Update, context: CallbackContext):
             
             conn.close()
             
-            status_text = "✅ Yoqilgan" if schedule_enabled == 'true' else "❌ O'chirilgan"
-            
-            text = (
-                f"🤖 Userbot holati:\n\n"
-                f"📊 Statistika:\n"
-                f"👥 Adminlar: {admin_count} ta\n"
-                f"🔑 Kalit so'zlar: {keyword_count} ta\n"
-                f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
-                f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
-                f"⚙️ Sozlamalar:\n"
-                f"⏰ Kundalik to'xtatish: {status_text}\n"
-            )
+            text = f"🤖 Userbot holati:\n\n📊 Statistika:\n"
+            text += f"👥 Adminlar: {admin_count} ta\n"
+            text += f"🔑 Kalit so'zlar: {keyword_count} ta\n"
+            text += f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
+            text += f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
+            text += f"⚙️ Sozlamalar:\n"
+            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ O'chirilgan'}\n"
             
             if schedule_enabled == 'true':
                 text += f"🌙 To'xtatish: {stop_time}\n🌅 Ishga tushirish: {start_time}\n\n"
@@ -525,7 +507,7 @@ def handle_text(update: Update, context: CallbackContext):
         if text.startswith("http"):
             db.add_private_group(admin_id, group_link=text, group_name="Link orqali guruh")
             update.message.reply_text(
-                "✅ Shaxsiy guruh link orqali qo'shildi!",
+                "✅ Shaxsiy guruh qo'shildi: Link orqali guruh",
                 reply_markup=back_button()
             )
         else:
