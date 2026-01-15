@@ -5,7 +5,6 @@
 import logging
 import os
 from datetime import datetime
-from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -17,10 +16,7 @@ from telegram.ext import (
 )
 import database as db
 
-# .env fayldan sozlamalarni yuklash
-load_dotenv()
-
-# Logging sozlash
+# ==================== LOGGING ====================
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -31,17 +27,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ==================== SOZLAMALAR ====================
+# ==================== SOZLAMALAR (.env/Variables) ====================
 TOKEN = os.getenv('BOT_TOKEN')
-SUPER_ADMIN_ID = int(os.getenv('SUPER_ADMIN_ID'))
+SUPER_ADMIN_ID_STR = os.getenv('SUPER_ADMIN_ID')
 
-if not TOKEN or not SUPER_ADMIN_ID:
-    raise ValueError("❌ .env faylida BOT_TOKEN yoki SUPER_ADMIN_ID topilmadi!")
+if not TOKEN or not SUPER_ADMIN_ID_STR:
+    raise ValueError("❌ Variables ichida BOT_TOKEN yoki SUPER_ADMIN_ID topilmadi!")
+
+try:
+    SUPER_ADMIN_ID = int(SUPER_ADMIN_ID_STR)
+except Exception:
+    raise ValueError("❌ SUPER_ADMIN_ID butun son bo‘lishi kerak (masalan: 123456789).")
 
 # ==================== KEYBOARD ====================
-
 def super_admin_keyboard():
-    """Super admin menyusi"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Yangi admin qo'shish", callback_data='add_admin')],
         [InlineKeyboardButton("📋 Adminlar ro'yxati", callback_data='list_admins')],
@@ -52,7 +51,6 @@ def super_admin_keyboard():
     ])
 
 def admin_keyboard():
-    """Admin menyusi"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Kalit so'z", callback_data='add_keyword'),
          InlineKeyboardButton("📋 Ko'rish", callback_data='view_keywords')],
@@ -66,13 +64,10 @@ def admin_keyboard():
     ])
 
 def back_button():
-    """Ortga qaytish tugmasi"""
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')]])
 
-# ==================== HANDLERS (v20 uchun async) ====================
-
+# ==================== HANDLERS (async, v20.8) ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start command handler"""
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
 
@@ -102,10 +97,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def get_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Guruh ID olish (/id buyrug'i)"""
     chat_id = update.effective_chat.id
     chat_type = update.effective_chat.type
-    chat_title = update.effective_chat.title if hasattr(update.effective_chat, 'title') else "Shaxsiy chat"
+    chat_title = getattr(update.effective_chat, 'title', "Shaxsiy chat")
 
     await update.message.reply_text(
         f"📊 Chat ma'lumotlari:\n\n"
@@ -116,14 +110,12 @@ async def get_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Inline button callback handler"""
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     data = query.data
 
     # ========== SUPER ADMIN FUNKSIYALARI ==========
-
     if data == 'add_admin' and user_id == SUPER_ADMIN_ID:
         context.user_data['waiting'] = 'admin_id'
         await query.edit_message_text(
@@ -160,20 +152,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith('rmadm_') and user_id == SUPER_ADMIN_ID:
         admin_id = int(data.split('_')[1])
         db.remove_admin(admin_id)
-        await query.edit_message_text(
-            "✅ Admin va uning barcha ma'lumotlari o'chirildi!",
-            reply_markup=back_button()
-        )
+        await query.edit_message_text("✅ Admin va uning barcha ma'lumotlari o'chirildi!", reply_markup=back_button())
 
     elif data == 'enter_admin_room' and user_id == SUPER_ADMIN_ID:
         admins = db.get_all_admins()
         if admins:
             keyboard = [[InlineKeyboardButton(f"🚪 {u}", callback_data=f'enter_{i}')] for i, u in admins]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            await query.edit_message_text(
-                "🚪 Qaysi admin xonasiga kirmoqchisiz?",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            await query.edit_message_text("🚪 Qaysi admin xonasiga kirmoqchisiz?", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             await query.edit_message_text("ℹ️ Adminlar yo'q.", reply_markup=back_button())
 
@@ -190,16 +176,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stop_time = db.get_setting('userbot_stop_time', '00:00')
         start_time = db.get_setting('userbot_start_time', '02:00')
         schedule_enabled = db.get_setting('userbot_schedule_enabled', 'true')
-
         status = "✅ Yoqilgan" if schedule_enabled == 'true' else "❌ O'chirilgan"
 
         text = f"⚙️ Userbot sozlamalari:\n\n⏰ Kundalik to'xtatish: {status}\n"
-
         if schedule_enabled == 'true':
             text += f"🌙 To'xtatish vaqti: {stop_time}\n🌅 Ishga tushirish vaqti: {start_time}\n\n"
         else:
             text += "\n"
-
         text += "💡 Vaqtni o'zgartirish uchun quyidagi formatda yuboring:\n"
         text += "<code>00:00:02:00</code>\n(00:00 da to'xtatadi, 02:00 da ishga tushiradi)\n\n"
         text += "📝 To'xtatishni o'chirish uchun: <code>off</code>"
@@ -208,22 +191,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("❌ To'xtatishni o'chirish", callback_data='userbot_disable_schedule')],
             [InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')]
         ])
-
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode='HTML')
         context.user_data['waiting'] = 'userbot_time'
 
     elif data == 'userbot_disable_schedule' and user_id == SUPER_ADMIN_ID:
         db.set_setting('userbot_schedule_enabled', 'false')
-        await query.edit_message_text(
-            "✅ Userbot to'xtatish o'chirildi!\n\n"
-            "🤖 Userbot endi 24/7 ishlaydi.",
-            reply_markup=back_button()
-        )
+        await query.edit_message_text("✅ Userbot to'xtatish o'chirildi!\n\n🤖 Userbot endi 24/7 ishlaydi.", reply_markup=back_button())
         context.user_data.pop('waiting', None)
 
     elif data == 'check_userbot' and user_id == SUPER_ADMIN_ID:
         try:
-            # ... (bu qism o'zgarishsiz qoladi, faqat oxirida await qo'shiladi)
             conn = db.get_db()
             c = conn.cursor()
             c.execute("SELECT COUNT(*) as cnt FROM admins")
@@ -240,19 +217,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             start_time = db.get_setting('userbot_start_time', '02:00')
             conn.close()
 
-            text = f"🤖 Userbot holati:\n\n📊 Statistika:\n"
+            text = "🤖 Userbot holati:\n\n📊 Statistika:\n"
             text += f"👥 Adminlar: {admin_count} ta\n"
             text += f"🔑 Kalit so'zlar: {keyword_count} ta\n"
             text += f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
             text += f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
-            text += f"⚙️ Sozlamalar:\n"
-            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ Ochirilgan'}\n"
-
+            text += "⚙️ Sozlamalar:\n"
+            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ O\'chirilgan'}\n"
             if schedule_enabled == 'true':
                 text += f"🌙 To'xtatish: {stop_time}\n🌅 Ishga tushirish: {start_time}\n\n"
             else:
                 text += "\n"
-
             text += f"🕐 Oxirgi tekshiruv: {last_check}\n\n"
             text += "💡 Userbot ishlab turganini tekshirish uchun izlovchi guruhda kalit so'z yozing."
 
@@ -267,8 +242,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.edit_message_text(f"❌ Xato: {e}", reply_markup=back_button())
 
-    # ... (qolgan barcha button handlerlariga ham xuddi shunday await qo'shib chiqiladi)
-    # Misol uchun:
     elif data == 'add_keyword':
         context.user_data['waiting'] = 'keyword'
         await query.edit_message_text(
@@ -276,7 +249,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 Masalan: python, django, coding",
             reply_markup=back_button()
         )
-    # ... va hokazo ...
 
     elif data == 'back_to_main':
         context.user_data.pop('waiting', None)
@@ -286,9 +258,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif db.is_admin(user_id, SUPER_ADMIN_ID):
             await query.edit_message_text("🏠 Admin menyusi:", reply_markup=admin_keyboard())
 
-
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Matn xabarlarni handle qilish"""
     if not update.message or not update.message.text:
         return
 
@@ -300,15 +270,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     waiting = context.user_data.get('waiting')
 
-    # ... (bu yerdagi barcha update.message.reply_text'larga await qo'shiladi)
-    # Misol uchun:
     if waiting == 'admin_id' and user_id == SUPER_ADMIN_ID:
         try:
             new_id = int(text)
             try:
                 chat = await context.bot.get_chat(new_id)
                 uname = chat.username or chat.first_name or f"User_{new_id}"
-            except:
+            except Exception:
                 uname = f"User_{new_id}"
 
             if db.add_admin(new_id, uname):
@@ -317,18 +285,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=back_button()
                 )
             else:
-                await update.message.reply_text(
-                    "ℹ️ Bu admin allaqachon mavjud!",
-                    reply_markup=back_button()
-                )
-        except:
+                await update.message.reply_text("ℹ️ Bu admin allaqachon mavjud!", reply_markup=back_button())
+        except Exception:
             await update.message.reply_text("❌ Noto'g'ri ID!", reply_markup=back_button())
         context.user_data.pop('waiting', None)
-    # ... va hokazo ...
-
 
 async def check_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Guruh xabarlarini tekshirish (Bot orqali)"""
     if not update.message or not update.message.text:
         return
 
@@ -362,19 +324,18 @@ async def check_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.error(f"Bot xabar yuborishda xato: {e}")
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xatolarni log qilish"""
     logger.error(f"Update {update} sababli xatolik: {context.error}")
 
+# ==================== MAIN ====================
 def main():
-    """Bot ishga tushirish"""
     logger.info("=" * 60)
-    logger.info("🤖 BOT ISHGA TUSHMOQDA (v20)")
+    logger.info("🟢 BOT ISHGA TUSHMOQDA (v20)")
     logger.info("=" * 60)
 
     # Database yaratish
     db.init_db()
 
-    # Default sozlamalarni o'rnatish
+    # Default sozlamalar
     if not db.get_setting('userbot_stop_time'):
         db.set_setting('userbot_stop_time', '00:00')
     if not db.get_setting('userbot_start_time'):
@@ -382,7 +343,7 @@ def main():
     if not db.get_setting('userbot_schedule_enabled'):
         db.set_setting('userbot_schedule_enabled', 'true')
 
-    # Application yaratish (v20 usuli)
+    # Application yaratish (v20.8)
     application = Application.builder().token(TOKEN).build()
 
     # Handlerlar
@@ -391,15 +352,12 @@ def main():
     application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(MessageHandler(filters.TEXT & filters.PRIVATE, handle_text))
     application.add_handler(MessageHandler(filters.TEXT & (filters.GROUP | filters.SUPERGROUP), check_group_message))
-    
-    # Xatolik handlerini ro'yxatdan o'tkazish
+
+    # Xatolik handleri
     application.add_error_handler(error_handler)
 
     logger.info("🚀 Bot ishga tushmoqda...")
-
-    # Botni ishga tushirish (polling)
     application.run_polling()
-
 
 if __name__ == '__main__':
     main()
