@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 # ==================== SOZLAMALAR ====================
 TOKEN = os.getenv('BOT_TOKEN')
-SUPER_ADMIN_ID_STR = os.getenv('SUPER_ADMIN_ID')
-SUPER_ADMIN_ID = int(SUPER_ADMIN_ID_STR) if SUPER_ADMIN_ID_STR else None
+SUPER_ADMIN_ID_RAW = os.getenv('SUPER_ADMIN_ID')
+SUPER_ADMIN_ID = int(SUPER_ADMIN_ID_RAW) if SUPER_ADMIN_ID_RAW else None
 
 if not TOKEN or SUPER_ADMIN_ID is None:
     raise ValueError("❌ .env faylida BOT_TOKEN yoki SUPER_ADMIN_ID topilmadi!")
@@ -239,13 +239,18 @@ def button_callback(update: Update, context: CallbackContext):
             
             conn.close()
             
-            text = f"🤖 Userbot holati:\n\n📊 Statistika:\n"
-            text += f"👥 Adminlar: {admin_count} ta\n"
-            text += f"🔑 Kalit so'zlar: {keyword_count} ta\n"
-            text += f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
-            text += f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
-            text += f"⚙️ Sozlamalar:\n"
-            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ O'chirilgan'}\n"
+            status_text = "✅ Yoqilgan" if schedule_enabled == 'true' else "❌ O'chirilgan"
+            
+            text = (
+                f"🤖 Userbot holati:\n\n"
+                f"📊 Statistika:\n"
+                f"👥 Adminlar: {admin_count} ta\n"
+                f"🔑 Kalit so'zlar: {keyword_count} ta\n"
+                f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
+                f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
+                f"⚙️ Sozlamalar:\n"
+                f"⏰ Kundalik to'xtatish: {status_text}\n"
+            )
             
             if schedule_enabled == 'true':
                 text += f"🌙 To'xtatish: {stop_time}\n🌅 Ishga tushirish: {start_time}\n\n"
