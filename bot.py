@@ -1,5 +1,5 @@
 # ============================================
-# bot.py - Telegram Bot (To'liq versiya)
+# bot.py - Telegram Bot (Railway uchun tuzatilgan)
 # ============================================
 
 import logging
@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
 import database as db
 
 # .env fayldan sozlamalarni yuklash
@@ -627,8 +627,8 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("id", get_chat_id))
     dp.add_handler(CallbackQueryHandler(button_callback))
-    dp.add_handler(MessageHandler(Filters.text & Filters.private, handle_text))
-    dp.add_handler(MessageHandler(Filters.text & Filters.group, check_group_message))
+    dp.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_text))
+    dp.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, check_group_message))
     dp.add_error_handler(error_handler)
 
     logger.info("🚀 Bot ishga tushmoqda...")
