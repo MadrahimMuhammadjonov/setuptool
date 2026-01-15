@@ -1,13 +1,14 @@
 # ============================================
-# bot.py - Telegram Bot (Railway uchun tuzatilgan)
+# bot.py - Telegram Bot (v20.8 va Python 3.13 uchun)
 # ============================================
 
 import logging
 import os
+import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 import database as db
 
 # .env fayldan sozlamalarni yuklash
@@ -555,8 +556,8 @@ def main():
     if not db.get_setting('userbot_schedule_enabled'):
         db.set_setting('userbot_schedule_enabled', 'true')
     
-    # Application yaratish (v20+ uchun)
-    application = Application.builder().token(TOKEN).build()
+    # Application yaratish (v20.8 uchun)
+    application = ApplicationBuilder().token(TOKEN).build()
 
     # Handlerlar
     application.add_handler(CommandHandler("start", start))
@@ -573,8 +574,6 @@ def main():
         logger.info(f"🔐 Super Admin ID: {SUPER_ADMIN_ID}")
         logger.info("💡 Botni to'xtatish uchun Ctrl+C bosing")
         application.run_polling()
-    except KeyboardInterrupt:
-        logger.info("\n⛔ Bot to'xtatildi (Ctrl+C)")
     except Exception as e:
         logger.error(f"❌ Xato: {e}")
 
