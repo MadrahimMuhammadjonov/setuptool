@@ -244,7 +244,7 @@ def button_callback(update: Update, context: CallbackContext):
             text += f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
             text += f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
             text += f"⚙️ Sozlamalar:\n"
-            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ O\\'chirilgan'}\n"
+            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ Ochirilgan'}\n"
 
             
             if schedule_enabled == 'true':
