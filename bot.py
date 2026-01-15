@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 import database as db
 
 # .env fayldan sozlamalarni yuklash
@@ -64,20 +64,20 @@ def back_button():
 
 # ==================== HANDLERS ====================
 
-def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start command handler"""
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
     
     if user_id == SUPER_ADMIN_ID:
-        update.message.reply_text(
+        await update.message.reply_text(
             "🔐 Assalomu alaykum, Super Admin!\n\n"
             "Bu bot izlovchi guruhlardagi kalit so'zlarni topib, shaxsiy guruhingizga yuboradi.\n\n"
             "Menyudan kerakli bo'limni tanlang:",
             reply_markup=super_admin_keyboard()
         )
     elif db.is_admin(user_id, SUPER_ADMIN_ID):
-        update.message.reply_text(
+        await update.message.reply_text(
             f"👋 Assalomu alaykum, {username}!\n\n"
             f"🏠 Shaxsiy xonangizga xush kelibsiz.\n"
             f"Bu yerda kalit so'zlar va guruhlarni boshqarishingiz mumkin:",
@@ -85,7 +85,7 @@ def start(update: Update, context: CallbackContext):
         )
     else:
         keyboard = [[InlineKeyboardButton("👤 Adminga bog'lanish", url=f"tg://user?id={SUPER_ADMIN_ID}")]]
-        update.message.reply_text(
+        await update.message.reply_text(
             f"👋 Assalomu alaykum, {username}!\n\n"
             f"ℹ️ Bu bot izlovchi guruhlardagi kalit so'zlarni topib, "
             f"adminlarga xabar yuborish uchun mo'ljallangan.\n\n"
@@ -94,13 +94,13 @@ def start(update: Update, context: CallbackContext):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-def get_chat_id(update: Update, context: CallbackContext):
+async def get_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Guruh ID olish (/id buyrug'i)"""
     chat_id = update.effective_chat.id
     chat_type = update.effective_chat.type
     chat_title = update.effective_chat.title if hasattr(update.effective_chat, 'title') else "Shaxsiy chat"
     
-    update.message.reply_text(
+    await update.message.reply_text(
         f"📊 Chat ma'lumotlari:\n\n"
         f"📝 Nomi: {chat_title}\n"
         f"🆔 ID: `{chat_id}`\n"
@@ -108,10 +108,10 @@ def get_chat_id(update: Update, context: CallbackContext):
         parse_mode='Markdown'
     )
 
-def button_callback(update: Update, context: CallbackContext):
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Inline button callback handler"""
     query = update.callback_query
-    query.answer()
+    await query.answer()
     user_id = query.from_user.id
     data = query.data
 
@@ -119,7 +119,7 @@ def button_callback(update: Update, context: CallbackContext):
     
     if data == 'add_admin' and user_id == SUPER_ADMIN_ID:
         context.user_data['waiting'] = 'admin_id'
-        query.edit_message_text(
+        await query.edit_message_text(
             "📝 Yangi admin ID raqamini yuboring:\n\n"
             "💡 ID olish: @userinfobot ga /start yuboring",
             reply_markup=back_button()
@@ -130,30 +130,30 @@ def button_callback(update: Update, context: CallbackContext):
         if admins:
             keyboard = [[InlineKeyboardButton(f"👤 {u} (ID: {i})", url=f"tg://user?id={i}")] for i, u in admins]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            query.edit_message_text(
+            await query.edit_message_text(
                 f"📋 Adminlar ro'yxati ({len(admins)} ta):",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            query.edit_message_text("ℹ️ Hozircha adminlar yo'q.", reply_markup=back_button())
+            await query.edit_message_text("ℹ️ Hozircha adminlar yo'q.", reply_markup=back_button())
 
     elif data == 'remove_admin' and user_id == SUPER_ADMIN_ID:
         admins = db.get_all_admins()
         if admins:
             keyboard = [[InlineKeyboardButton(f"🗑 {u}", callback_data=f'rmadm_{i}')] for i, u in admins]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            query.edit_message_text(
+            await query.edit_message_text(
                 "🗑 O'chirish uchun adminni tanlang:\n\n"
                 "⚠️ Admin o'chirilganda uning barcha ma'lumotlari (kalit so'zlar, guruhlar) ham o'chiriladi!",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            query.edit_message_text("ℹ️ O'chiriladigan adminlar yo'q.", reply_markup=back_button())
+            await query.edit_message_text("ℹ️ O'chiriladigan adminlar yo'q.", reply_markup=back_button())
 
     elif data.startswith('rmadm_') and user_id == SUPER_ADMIN_ID:
         admin_id = int(data.split('_')[1])
         db.remove_admin(admin_id)
-        query.edit_message_text(
+        await query.edit_message_text(
             "✅ Admin va uning barcha ma'lumotlari o'chirildi!",
             reply_markup=back_button()
         )
@@ -163,17 +163,17 @@ def button_callback(update: Update, context: CallbackContext):
         if admins:
             keyboard = [[InlineKeyboardButton(f"🚪 {u}", callback_data=f'enter_{i}')] for i, u in admins]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            query.edit_message_text(
+            await query.edit_message_text(
                 "🚪 Qaysi admin xonasiga kirmoqchisiz?",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            query.edit_message_text("ℹ️ Adminlar yo'q.", reply_markup=back_button())
+            await query.edit_message_text("ℹ️ Adminlar yo'q.", reply_markup=back_button())
 
     elif data.startswith('enter_') and user_id == SUPER_ADMIN_ID:
         admin_id = int(data.split('_')[1])
         context.user_data['viewing_admin'] = admin_id
-        query.edit_message_text(
+        await query.edit_message_text(
             f"🏠 Admin xonasi (ID: {admin_id}):\n\n"
             f"Ushbu xonada barcha admin funksiyalaridan foydalanishingiz mumkin.",
             reply_markup=admin_keyboard()
@@ -202,12 +202,12 @@ def button_callback(update: Update, context: CallbackContext):
             [InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')]
         ])
         
-        query.edit_message_text(text, reply_markup=keyboard, parse_mode='HTML')
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode='HTML')
         context.user_data['waiting'] = 'userbot_time'
 
     elif data == 'userbot_disable_schedule' and user_id == SUPER_ADMIN_ID:
         db.set_setting('userbot_schedule_enabled', 'false')
-        query.edit_message_text(
+        await query.edit_message_text(
             "✅ Userbot to'xtatish o'chirildi!\n\n"
             "🤖 Userbot endi 24/7 ishlaydi.",
             reply_markup=back_button()
@@ -242,262 +242,197 @@ def button_callback(update: Update, context: CallbackContext):
             text += f"👥 Adminlar: {admin_count} ta\n"
             text += f"🔑 Kalit so'zlar: {keyword_count} ta\n"
             text += f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
-            text += f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
-            text += f"⚙️ Sozlamalar:\n"
-            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ Ochirilgan'}\n"
+            text += f"📤 Shaxsiy guruhlar: {private_group_count} ta\n\n"
+            text += f"⏰ Oxirgi tekshiruv: {last_check}\n"
+            text += f"⚙️ Reja: {schedule_enabled} ({stop_time}-{start_time})"
             
-            if schedule_enabled == 'true':
-                text += f"🌙 To'xtatish: {stop_time}\n🌅 Ishga tushirish: {start_time}\n\n"
-            else:
-                text += "\n"
-            
-            text += f"🕐 Oxirgi tekshiruv: {last_check}\n\n"
-            text += "💡 Userbot ishlab turganini tekshirish uchun izlovchi guruhda kalit so'z yozing."
-            
-            db.set_setting('userbot_last_check', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Yangilash", callback_data='check_userbot')],
-                [InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')]
-            ])
-            
-            query.edit_message_text(text, reply_markup=keyboard)
-            
+            await query.edit_message_text(text, reply_markup=back_button())
         except Exception as e:
-            query.edit_message_text(f"❌ Xato: {e}", reply_markup=back_button())
+            await query.edit_message_text(f"❌ Xato: {e}", reply_markup=back_button())
 
     # ========== ADMIN FUNKSIYALARI ==========
     
+    elif data == 'back_to_main':
+        context.user_data.pop('waiting', None)
+        context.user_data.pop('viewing_admin', None)
+        if user_id == SUPER_ADMIN_ID:
+            await query.edit_message_text(
+                "🔐 Super Admin menyusi:",
+                reply_markup=super_admin_keyboard()
+            )
+        else:
+            await query.edit_message_text(
+                "🏠 Admin menyusi:",
+                reply_markup=admin_keyboard()
+            )
+
     elif data == 'add_keyword':
         context.user_data['waiting'] = 'keyword'
-        query.edit_message_text(
-            "📝 Kalit so'zni kiriting:\n\n"
-            "💡 Masalan: python, django, coding",
-            reply_markup=back_button()
+        await query.edit_message_text(
+            "📝 Yangi kalit so'zni yuboring:\n\n"
+            "💡 Bir nechta bo'lsa, vergul bilan ajrating.\n"
+            "Masalan: <code>ish, vakansiya, usta</code>",
+            reply_markup=back_button(),
+            parse_mode='HTML'
         )
 
     elif data == 'view_keywords':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        kws = db.get_keywords(admin_id)
-        if kws:
-            text = "📋 Kalit so'zlar:\n\n" + "\n".join([f"{i}. {k}" for i, (_, k) in enumerate(kws, 1)])
-            text += f"\n\n💾 Jami: {len(kws)} ta"
-            query.edit_message_text(text, reply_markup=back_button())
+        keywords = db.get_admin_keywords(admin_id)
+        if keywords:
+            text = "📋 Sizning kalit so'zlaringiz:\n\n"
+            for i, k in enumerate(keywords, 1):
+                text += f"{i}. {k}\n"
+            await query.edit_message_text(text, reply_markup=back_button())
         else:
-            query.edit_message_text(
-                "ℹ️ Hozircha kalit so'zlar yo'q.\n\n"
-                "➕ Kalit so'z qo'shish uchun 'Kalit so'z' tugmasini bosing.",
-                reply_markup=back_button()
-            )
+            await query.edit_message_text("ℹ️ Kalit so'zlar topilmadi.", reply_markup=back_button())
 
     elif data == 'delete_keyword':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        kws = db.get_keywords(admin_id)
-        if kws:
-            keyboard = [[InlineKeyboardButton(f"🗑 {k}", callback_data=f'delkw_{i}')] for i, k in kws]
+        keywords = db.get_admin_keywords(admin_id)
+        if keywords:
+            keyboard = [[InlineKeyboardButton(f"🗑 {k}", callback_data=f'delkey_{k}')] for k in keywords]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            query.edit_message_text(
+            await query.edit_message_text(
                 "🗑 O'chirish uchun kalit so'zni tanlang:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            query.edit_message_text(
-                "ℹ️ O'chiriladigan kalit so'zlar yo'q.",
-                reply_markup=back_button()
-            )
+            await query.edit_message_text("ℹ️ O'chiriladigan kalit so'zlar yo'q.", reply_markup=back_button())
 
-    elif data.startswith('delkw_'):
-        kid = int(data.split('_')[1])
-        db.remove_keyword(kid)
-        query.edit_message_text("✅ Kalit so'z o'chirildi!", reply_markup=back_button())
+    elif data.startswith('delkey_'):
+        admin_id = context.user_data.get('viewing_admin', user_id)
+        keyword = data.replace('delkey_', '')
+        db.remove_keyword(admin_id, keyword)
+        await query.edit_message_text(f"✅ '{keyword}' o'chirildi!", reply_markup=back_button())
 
     elif data == 'add_private_group':
         context.user_data['waiting'] = 'private_group'
-        query.edit_message_text(
-            "📝 Shaxsiy guruh ID yoki link yuboring:\n\n"
-            "💡 ID olish:\n"
-            "1. Botni guruhga admin qiling\n"
-            "2. Guruhda /id yuboring\n"
-            "3. ID yoki linkni bu yerga yuboring\n\n"
-            "ℹ️ Shaxsiy guruhga kalit so'z topilganda xabar yuboriladi.",
+        await query.edit_message_text(
+            "📝 Shaxsiy guruh ID raqamini yoki linkini yuboring:\n\n"
+            "💡 ID olish uchun guruhda /id buyrug'ini bering.",
             reply_markup=back_button()
         )
 
     elif data == 'view_private_group':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        gname = db.get_private_group_name(admin_id)
-        if gname:
-            query.edit_message_text(
-                f"📢 Shaxsiy guruh: {gname}\n\n"
-                f"ℹ️ Kalit so'z topilganda bu guruhga xabar yuboriladi.",
-                reply_markup=back_button()
-            )
+        groups = db.get_admin_private_groups(admin_id)
+        if groups:
+            text = "👁 Shaxsiy guruhlaringiz:\n\n"
+            for i, (gid, gname, glink) in enumerate(groups, 1):
+                text += f"{i}. {gname} (ID: {gid})\n"
+            await query.edit_message_text(text, reply_markup=back_button())
         else:
-            query.edit_message_text(
-                "ℹ️ Shaxsiy guruh hali qo'shilmagan.\n\n"
-                "➕ Shaxsiy guruh qo'shish uchun 'Shaxsiy guruh' tugmasini bosing.",
-                reply_markup=back_button()
-            )
+            await query.edit_message_text("ℹ️ Shaxsiy guruhlar topilmadi.", reply_markup=back_button())
 
     elif data == 'delete_private_group':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        gname = db.get_private_group_name(admin_id)
-        if gname:
-            keyboard = [[InlineKeyboardButton(f"🗑 {gname}", callback_data=f'delpr_{admin_id}')]]
+        groups = db.get_admin_private_groups(admin_id)
+        if groups:
+            keyboard = [[InlineKeyboardButton(f"🗑 {name}", callback_data=f'delpriv_{gid}')] for gid, name, link in groups]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            query.edit_message_text(
-                "🗑 Shaxsiy guruhni o'chirishni tasdiqlang:",
+            await query.edit_message_text(
+                "🗑 O'chirish uchun guruhni tanlang:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            query.edit_message_text(
-                "ℹ️ O'chiriladigan shaxsiy guruh yo'q.",
-                reply_markup=back_button()
-            )
+            await query.edit_message_text("ℹ️ O'chiriladigan guruhlar yo'q.", reply_markup=back_button())
 
-    elif data.startswith('delpr_'):
-        admin_id = int(data.split('_')[1])
-        db.remove_private_group(admin_id)
-        query.edit_message_text("✅ Shaxsiy guruh o'chirildi!", reply_markup=back_button())
+    elif data.startswith('delpriv_'):
+        admin_id = context.user_data.get('viewing_admin', user_id)
+        group_id = data.split('_')[1]
+        db.remove_private_group(admin_id, group_id)
+        await query.edit_message_text("✅ Shaxsiy guruh o'chirildi!", reply_markup=back_button())
 
     elif data == 'add_search_group':
-        admin_id = context.user_data.get('viewing_admin', user_id)
-        grps = db.get_search_groups(admin_id)
         context.user_data['waiting'] = 'search_group'
-        query.edit_message_text(
-            f"📝 Izlovchi guruh ID yoki link yuboring:\n\n"
-            f"📊 Hozirda: {len(grps)}/100 ta\n\n"
-            f"💡 ID olish:\n"
-            f"1. Botni guruhga admin qiling\n"
-            f"2. Guruhda /id yuboring\n"
-            f"3. ID yoki linkni bu yerga yuboring\n\n"
-            f"ℹ️ Ushbu guruhlardan kalit so'zlar izlanadi.",
+        await query.edit_message_text(
+            "📝 Izlovchi guruh ID raqamini yoki linkini yuboring:\n\n"
+            "💡 Bot ushbu guruhdagi xabarlarni kuzatadi.",
             reply_markup=back_button()
         )
 
     elif data == 'view_search_groups':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        grps = db.get_search_groups(admin_id)
-        if grps:
+        groups = db.get_admin_search_groups(admin_id)
+        if groups:
             text = "📋 Izlovchi guruhlar:\n\n"
-            for i, gname in enumerate([g[1] for g in grps], 1):
-                text += f"{i}. {gname}\n"
-            text += f"\n💾 Jami: {len(grps)}/100 ta"
-            query.edit_message_text(text, reply_markup=back_button())
+            for i, (gid, gname, glink) in enumerate(groups, 1):
+                text += f"{i}. {gname} (ID: {gid})\n"
+            await query.edit_message_text(text, reply_markup=back_button())
         else:
-            query.edit_message_text(
-                "ℹ️ Hozircha izlovchi guruhlar yo'q.\n\n"
-                "➕ Izlovchi guruh qo'shish uchun 'Izlovchi guruh' tugmasini bosing.",
-                reply_markup=back_button()
-            )
+            await query.edit_message_text("ℹ️ Izlovchi guruhlar topilmadi.", reply_markup=back_button())
 
     elif data == 'delete_search_group':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        grps = db.get_search_groups(admin_id)
-        if grps:
-            keyboard = [[InlineKeyboardButton(f"🗑 {gname}", callback_data=f'delgrp_{rowid}')] for rowid, gname in grps]
+        groups = db.get_admin_search_groups(admin_id)
+        if groups:
+            keyboard = [[InlineKeyboardButton(f"🗑 {name}", callback_data=f'delsrch_{gid}')] for gid, name, link in groups]
             keyboard.append([InlineKeyboardButton("⬅️ Ortga", callback_data='back_to_main')])
-            query.edit_message_text(
-                "🗑 O'chirish uchun izlovchi guruhni tanlang:",
+            await query.edit_message_text(
+                "🗑 O'chirish uchun guruhni tanlang:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            query.edit_message_text(
-                "ℹ️ O'chiriladigan izlovchi guruhlar yo'q.",
-                reply_markup=back_button()
-            )
+            await query.edit_message_text("ℹ️ O'chiriladigan guruhlar yo'q.", reply_markup=back_button())
 
-    elif data.startswith('delgrp_'):
-        gid_row = int(data.split('_')[1])
-        db.remove_search_group(gid_row)
-        query.edit_message_text("✅ Izlovchi guruh o'chirildi!", reply_markup=back_button())
+    elif data.startswith('delsrch_'):
+        admin_id = context.user_data.get('viewing_admin', user_id)
+        group_id = data.split('_')[1]
+        db.remove_search_group(admin_id, group_id)
+        await query.edit_message_text("✅ Izlovchi guruh o'chirildi!", reply_markup=back_button())
 
-    elif data == 'back_to_main':
-        context.user_data.pop('waiting', None)
-        if user_id == SUPER_ADMIN_ID:
-            context.user_data.pop('viewing_admin', None)
-            query.edit_message_text("🔐 Super Admin menyusi:", reply_markup=super_admin_keyboard())
-        elif db.is_admin(user_id, SUPER_ADMIN_ID):
-            query.edit_message_text("🏠 Admin menyusi:", reply_markup=admin_keyboard())
-
-def handle_text(update: Update, context: CallbackContext):
-    """Matn xabarlarni handle qilish"""
-    if not update.message or not update.message.text:
-        return
-    
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Matnli xabarlarni qayta ishlash"""
     user_id = update.effective_user.id
-    text = update.message.text.strip()
-    
-    if not db.is_admin(user_id, SUPER_ADMIN_ID):
-        return
-    
+    text = update.message.text
     waiting = context.user_data.get('waiting')
+
+    if not waiting:
+        return
 
     if waiting == 'admin_id' and user_id == SUPER_ADMIN_ID:
         try:
-            new_id = int(text)
-            try:
-                chat = context.bot.get_chat(new_id)
-                uname = chat.username or chat.first_name or f"User_{new_id}"
-            except:
-                uname = f"User_{new_id}"
-            
-            if db.add_admin(new_id, uname):
-                update.message.reply_text(
-                    f"✅ Admin qo'shildi!\n\n👤 {uname}\n🆔 {new_id}",
-                    reply_markup=back_button()
-                )
-            else:
-                update.message.reply_text(
-                    "ℹ️ Bu admin allaqachon mavjud!",
-                    reply_markup=back_button()
-                )
-        except:
-            update.message.reply_text("❌ Noto'g'ri ID!", reply_markup=back_button())
+            new_admin_id = int(text)
+            db.add_admin(new_admin_id, f"Admin_{new_admin_id}")
+            await update.message.reply_text(
+                f"✅ Yangi admin qo'shildi! (ID: {new_admin_id})",
+                reply_markup=back_button()
+            )
+        except ValueError:
+            await update.message.reply_text("❌ Noto'g'ri ID! Faqat raqam yuboring.")
         context.user_data.pop('waiting', None)
 
     elif waiting == 'userbot_time' and user_id == SUPER_ADMIN_ID:
         if text.lower() == 'off':
             db.set_setting('userbot_schedule_enabled', 'false')
-            update.message.reply_text(
-                "✅ Userbot to'xtatish o'chirildi!\n\n🤖 Userbot 24/7 ishlaydi.",
-                reply_markup=back_button()
-            )
+            await update.message.reply_text("✅ Userbot to'xtatish o'chirildi!", reply_markup=back_button())
         else:
             try:
-                times = text.split(':')
-                if len(times) == 4:
-                    stop_h, stop_m, start_h, start_m = times
-                    stop_time = f"{stop_h.zfill(2)}:{stop_m.zfill(2)}"
-                    start_time = f"{start_h.zfill(2)}:{start_m.zfill(2)}"
-                    
-                    db.set_setting('userbot_stop_time', stop_time)
-                    db.set_setting('userbot_start_time', start_time)
+                parts = text.split(':')
+                if len(parts) == 4:
+                    stop = f"{parts[0]}:{parts[1]}"
+                    start = f"{parts[2]}:{parts[3]}"
+                    db.set_setting('userbot_stop_time', stop)
+                    db.set_setting('userbot_start_time', start)
                     db.set_setting('userbot_schedule_enabled', 'true')
-                    
-                    update.message.reply_text(
-                        f"✅ Vaqt sozlandi!\n\n"
-                        f"🌙 To'xtatish: {stop_time}\n"
-                        f"🌅 Ishga tushirish: {start_time}",
+                    await update.message.reply_text(
+                        f"✅ Vaqt o'rnatildi!\n🌙 To'xtash: {stop}\n🌅 Ishga tushish: {start}",
                         reply_markup=back_button()
                     )
                 else:
-                    update.message.reply_text(
-                        "❌ Noto'g'ri format! Misol: 00:00:02:00",
-                        reply_markup=back_button()
-                    )
+                    await update.message.reply_text("❌ Format noto'g'ri! Masalan: 00:00:02:00")
             except:
-                update.message.reply_text(
-                    "❌ Noto'g'ri format! Misol: 00:00:02:00",
-                    reply_markup=back_button()
-                )
+                await update.message.reply_text("❌ Xato yuz berdi!")
         context.user_data.pop('waiting', None)
 
     elif waiting == 'keyword':
         admin_id = context.user_data.get('viewing_admin', user_id)
-        db.add_keyword(admin_id, text)
-        update.message.reply_text(
-            f"✅ Kalit so'z qo'shildi: {text}",
+        keywords = [k.strip() for k in text.split(',') if k.strip()]
+        for k in keywords:
+            db.add_keyword(admin_id, k)
+        await update.message.reply_text(
+            f"✅ {len(keywords)} ta kalit so'z qo'shildi!",
             reply_markup=back_button()
         )
         context.user_data.pop('waiting', None)
@@ -506,7 +441,7 @@ def handle_text(update: Update, context: CallbackContext):
         admin_id = context.user_data.get('viewing_admin', user_id)
         if text.startswith("http"):
             db.add_private_group(admin_id, group_link=text, group_name="Link orqali guruh")
-            update.message.reply_text(
+            await update.message.reply_text(
                 "✅ Shaxsiy guruh qo'shildi: Link orqali guruh",
                 reply_markup=back_button()
             )
@@ -514,17 +449,17 @@ def handle_text(update: Update, context: CallbackContext):
             try:
                 gid = int(text)
                 try:
-                    chat = context.bot.get_chat(gid)
+                    chat = await context.bot.get_chat(gid)
                     gname = chat.title or f"Guruh {gid}"
                 except:
                     gname = f"Guruh {gid}"
                 db.add_private_group(admin_id, group_id=gid, group_name=gname)
-                update.message.reply_text(
+                await update.message.reply_text(
                     f"✅ Shaxsiy guruh qo'shildi: {gname}",
                     reply_markup=back_button()
                 )
             except:
-                update.message.reply_text(
+                await update.message.reply_text(
                     "❌ Noto'g'ri ID yoki link!",
                     reply_markup=back_button()
                 )
@@ -535,37 +470,37 @@ def handle_text(update: Update, context: CallbackContext):
         if text.startswith("http"):
             success, message = db.add_search_group(admin_id, SUPER_ADMIN_ID, group_link=text, group_name="Link orqali guruh")
             if success:
-                update.message.reply_text(
+                await update.message.reply_text(
                     f"✅ {message}: Link orqali guruh",
                     reply_markup=back_button()
                 )
             else:
-                update.message.reply_text(f"❌ {message}", reply_markup=back_button())
+                await update.message.reply_text(f"❌ {message}", reply_markup=back_button())
         else:
             try:
                 gid = int(text)
                 try:
-                    chat = context.bot.get_chat(gid)
+                    chat = await context.bot.get_chat(gid)
                     gname = chat.title or f"Guruh {gid}"
                 except:
                     gname = f"Guruh {gid}"
                 
                 success, message = db.add_search_group(admin_id, SUPER_ADMIN_ID, group_id=gid, group_name=gname)
                 if success:
-                    update.message.reply_text(
+                    await update.message.reply_text(
                         f"✅ {message}: {gname}",
                         reply_markup=back_button()
                     )
                 else:
-                    update.message.reply_text(f"❌ {message}", reply_markup=back_button())
+                    await update.message.reply_text(f"❌ {message}", reply_markup=back_button())
             except:
-                update.message.reply_text(
+                await update.message.reply_text(
                     "❌ Noto'g'ri ID yoki link!",
                     reply_markup=back_button()
                 )
         context.user_data.pop('waiting', None)
 
-def check_group_message(update: Update, context: CallbackContext):
+async def check_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Guruh xabarlarini tekshirish (Bot orqali)"""
     if not update.message or not update.message.text:
         return
@@ -586,7 +521,7 @@ def check_group_message(update: Update, context: CallbackContext):
         try:
             keyboard = [[InlineKeyboardButton("👤 Profil", url=f"tg://user?id={user_id}")]]
             if match['private_group_id']:
-                context.bot.send_message(
+                await context.bot.send_message(
                     chat_id=match['private_group_id'],
                     text=(f"🔍 Kalit so'z topildi! (Bot)\n\n"
                           f"📢 Guruh: {group_name}\n"
@@ -599,7 +534,7 @@ def check_group_message(update: Update, context: CallbackContext):
         except Exception as e:
             logger.error(f"Bot xabar yuborishda xato: {e}")
 
-def error_handler(update: Update, context: CallbackContext):
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xatolarni log qilish"""
     logger.error(f"Update {update} caused error {context.error}")
 
@@ -620,25 +555,24 @@ def main():
     if not db.get_setting('userbot_schedule_enabled'):
         db.set_setting('userbot_schedule_enabled', 'true')
     
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+    # Application yaratish (v20+ uchun)
+    application = Application.builder().token(TOKEN).build()
 
     # Handlerlar
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("id", get_chat_id))
-    dp.add_handler(CallbackQueryHandler(button_callback))
-    dp.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_text))
-    dp.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, check_group_message))
-    dp.add_error_handler(error_handler)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("id", get_chat_id))
+    application.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_text))
+    application.add_handler(MessageHandler(filters.TEXT & (filters.ChatType.GROUPS | filters.ChatType.SUPERGROUP), check_group_message))
+    application.add_error_handler(error_handler)
 
     logger.info("🚀 Bot ishga tushmoqda...")
     
     try:
-        updater.start_polling()
         logger.info("✅ Bot ishga tushdi!")
         logger.info(f"🔐 Super Admin ID: {SUPER_ADMIN_ID}")
         logger.info("💡 Botni to'xtatish uchun Ctrl+C bosing")
-        updater.idle()
+        application.run_polling()
     except KeyboardInterrupt:
         logger.info("\n⛔ Bot to'xtatildi (Ctrl+C)")
     except Exception as e:
