@@ -1,6 +1,18 @@
 # ============================================
-# bot.py - Telegram Bot (To'liq versiya)
+# bot.py - Telegram Bot (Python 3.13 moslik versiyasi)
 # ============================================
+
+import sys
+
+# Python 3.13 da 'imghdr' olib tashlangan, lekin python-telegram-bot v13 uni talab qiladi.
+# Uni vaqtincha "monkeypatch" qilish orqali xatolikni chetlab o'tamiz.
+try:
+    import imghdr
+except ImportError:
+    import types
+    imghdr = types.ModuleType("imghdr")
+    imghdr.what = lambda file, h=None: None
+    sys.modules["imghdr"] = imghdr
 
 import logging
 import os
