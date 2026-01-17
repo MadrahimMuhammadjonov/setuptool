@@ -1,5 +1,5 @@
 # ============================================
-# userbot.py - Telegram Userbot (To'liq versiya)
+# userbot.py - Telegram Userbot
 # ============================================
 
 import logging
