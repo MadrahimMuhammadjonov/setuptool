@@ -1,19 +1,31 @@
 # ============================================
-# bot.py - Telegram Bot (To'liq versiya)
+# bot.py - Telegram Bot
 # ============================================
 
 import logging
+import os
 from datetime import datetime
+from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters, CallbackContext
 import database as db
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+# .env fayldan sozlamalarni yuklash
+load_dotenv()
+
+# Logging sozlash
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 # ==================== SOZLAMALAR ====================
-TOKEN = "8332172370:AAHpj0H_6sss-bMoGizp1ulUFQkmkEdC_PA"
-SUPER_ADMIN_ID = 7740552653
+TOKEN = os.getenv('BOT_TOKEN')
+SUPER_ADMIN_ID = int(os.getenv('SUPER_ADMIN_ID'))
+
+if not TOKEN or not SUPER_ADMIN_ID:
+    raise ValueError("❌ .env faylida BOT_TOKEN yoki SUPER_ADMIN_ID topilmadi!")
 
 # ==================== KEYBOARD ====================
 
@@ -73,7 +85,7 @@ def start(update: Update, context: CallbackContext):
 def get_chat_id(update: Update, context: CallbackContext):
     """Guruh ID olish"""
     chat_id = update.effective_chat.id
-    update.message.reply_text(f"📊 Bu guruh ID: {chat_id}")
+    update.message.reply_text(f"📊 Bu guruh ID: `{chat_id}`", parse_mode='Markdown')
 
 def button_callback(update: Update, context: CallbackContext):
     """Inline button callback handler"""
@@ -185,7 +197,7 @@ def button_callback(update: Update, context: CallbackContext):
             text += f"🔍 Izlovchi guruhlar: {search_group_count} ta\n"
             text += f"📢 Shaxsiy guruhlar: {private_group_count} ta\n\n"
             text += f"⚙️ Sozlamalar:\n"
-            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ Ochirilgan'}\n"
+            text += f"⏰ Kundalik to'xtatish: {'✅ Yoqilgan' if schedule_enabled == 'true' else '❌ O\'chirilgan'}\n"
 
             if schedule_enabled == 'true':
                 text += f"🌙 To'xtatish: {stop_time}\n🌅 Ishga tushirish: {start_time}\n\n"
@@ -339,7 +351,7 @@ def handle_text(update: Update, context: CallbackContext):
         context.user_data.pop('waiting', None)
         return
 
-    # Only admins can proceed below
+    # Faqat adminlar davom etishi mumkin
     if not db.is_admin(user_id, SUPER_ADMIN_ID):
         return
 
@@ -435,6 +447,7 @@ def check_group_message(update: Update, context: CallbackContext):
     username = update.message.from_user.username or update.message.from_user.first_name or "Unknown"
     group_name = update.message.chat.title or "Unknown group"
 
+    # Kalit so'zlarni tekshirish
     matches = db.check_keywords_in_message(group_id, msg_text)
 
     for match in matches:
@@ -454,10 +467,15 @@ def check_group_message(update: Update, context: CallbackContext):
         except Exception as e:
             logger.error(f"Bot xabar yuborishda xato: {e}")
 
+def error_handler(update: Update, context: CallbackContext):
+    """Xatolarni handle qilish"""
+    logger.error(f"Update {update} caused error {context.error}")
+
 def main():
     """Bot ishga tushirish"""
     db.init_db()
 
+    # Default sozlamalarni o'rnatish
     if not db.get_setting('userbot_stop_time'):
         db.set_setting('userbot_stop_time', '00:00')
     if not db.get_setting('userbot_start_time'):
@@ -468,11 +486,13 @@ def main():
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
 
+    # Handlerlarni qo'shish
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("id", get_chat_id))
     dp.add_handler(CallbackQueryHandler(button_callback))
     dp.add_handler(MessageHandler(Filters.text & Filters.private, handle_text))
     dp.add_handler(MessageHandler(Filters.text & Filters.group, check_group_message))
+    dp.add_error_handler(error_handler)
 
     logger.info("🚀 Bot ishga tushmoqda...")
 
